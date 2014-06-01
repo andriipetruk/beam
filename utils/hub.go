@@ -39,6 +39,7 @@ func (hub *Hub) Send(msg *beam.Message, mode int) (beam.Receiver, beam.Sender, e
 			Copy(prevHandlers, hYoutr)
 			hYoutr.Close()
 		}()
+		fmt.Printf("[Hub.Send] returning %v, %v, %v\n", hYinr, hYoutw, nil)
 		return hYinr, hYoutw, nil
 	}
 	fmt.Printf("sending %#v to %d handlers\n", msg, hub.handlers.Len())
@@ -87,6 +88,7 @@ func (hub *Hub) RegisterName(name string, h Handler) error {
 		}
 		for {
 			msg, msgin, msgout, err := in.Receive(beam.R | beam.W)
+			fmt.Printf("msgout = %#v\n", msgout)
 			if err == io.EOF {
 				break
 			}

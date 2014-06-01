@@ -3,17 +3,34 @@ package inmem
 import (
 	"fmt"
 	"github.com/docker/beam"
-	"github.com/dotcloud/docker/pkg/testutils"
 	"io/ioutil"
 	"os"
 	"testing"
 )
 
+func Timeout(t *testing.T, f func()) {
+	f()
+}
+
+func TestReceiveW(t *testing.T) {
+	r, w := Pipe()
+	go func() {
+		w.Send(&beam.Message{Name: "hello"}, 0)
+	}()
+	_, _, ww, err := r.Receive(beam.W)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ww.Send(&beam.Message{Name: "this better not crash"}, 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSimpleSend(t *testing.T) {
 	r, w := Pipe()
 	defer r.Close()
 	defer w.Close()
-	testutils.Timeout(t, func() {
+	Timeout(t, func() {
 		go func() {
 			msg, in, out, err := r.Receive(0)
 			if err != nil {
@@ -37,8 +54,8 @@ func TestSimpleSend(t *testing.T) {
 
 // assertMode verifies that the values of r and w match
 // mode.
-// If mode has the R bit set, r must be non-nil. Otherwise it must be nil.
-// If mode has the W bit set, w must be non-nil. Otherwise it must be nil.
+// If mode has the R bit set, r must be non-nil.
+// If mode has the W bit set, w must be non-nil.
 //
 // If any of these conditions are not met, t.Fatal is called and the active
 // test fails.
@@ -49,10 +66,6 @@ func assertMode(t *testing.T, r beam.Receiver, w beam.Sender, mode int) {
 			t.Fatalf("should be non-nil: %#v", r)
 		}
 		// Otherwise it must be nil.
-	} else {
-		if r != nil {
-			t.Fatalf("should be nil: %#v", r)
-		}
 	}
 	// If mode has the W bit set, w must be non-nil
 	if mode&beam.W != 0 {
@@ -60,10 +73,6 @@ func assertMode(t *testing.T, r beam.Receiver, w beam.Sender, mode int) {
 			t.Fatalf("should be non-nil: %#v", w)
 		}
 		// Otherwise it must be nil.
-	} else {
-		if w != nil {
-			t.Fatalf("should be nil: %#v", w)
-		}
 	}
 }
 
@@ -71,7 +80,7 @@ func TestSendReply(t *testing.T) {
 	r, w := Pipe()
 	defer r.Close()
 	defer w.Close()
-	testutils.Timeout(t, func() {
+	Timeout(t, func() {
 		// Send
 		go func() {
 			// Send a message with mode=R
@@ -110,7 +119,7 @@ func TestSendNested(t *testing.T) {
 	r, w := Pipe()
 	defer r.Close()
 	defer w.Close()
-	testutils.Timeout(t, func() {
+	Timeout(t, func() {
 		// Send
 		go func() {
 			// Send a message with mode=W
@@ -157,7 +166,7 @@ func TestSendFile(t *testing.T) {
 	fmt.Fprintf(tmp, "hello world\n")
 	tmp.Sync()
 	tmp.Seek(0, 0)
-	testutils.Timeout(t, func() {
+	Timeout(t, func() {
 		go func() {
 			_, _, err := w.Send(&beam.Message{"file", []string{"path=" + tmp.Name()}, tmp}, 0)
 			if err != nil {
